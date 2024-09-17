@@ -4,7 +4,7 @@ import { IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateOrderDto extends PartialType(CreateOrderDto) {
-  // @IsNumber()
-  // @Type(() => Number)
-  // id: number;
+  @IsNumber()
+  @Type(() => Number)
+  id: number;
 }

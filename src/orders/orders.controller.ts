@@ -18,10 +18,9 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @MessagePattern({ cmd: 'create_order' })
-  create(@Payload() createOrderDto: CreateOrderDto) {
-    // console.log(createOrderDto);
-    return this.ordersService.create(createOrderDto);
+  create(@Payload() createOrderDto: any) {
     // return createOrderDto;
+    return this.ordersService.create(createOrderDto);
   }
 
   @MessagePattern({ cmd: 'find_all_orders' })
