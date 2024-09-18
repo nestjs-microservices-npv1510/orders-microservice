@@ -138,6 +138,12 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       },
     });
 
+    if (!order)
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `Order with id #${id} not found`,
+      });
+
     // console.log(order);
     const validProducts = await firstValueFrom(
       this.productsClient.send(
