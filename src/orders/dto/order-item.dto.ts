@@ -1,8 +1,10 @@
-import { IsNumber, IsPositive } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsNumber, IsPositive, IsString } from 'class-validator';
 
 export class OrderItemDto {
   @IsNumber()
   @IsPositive()
+  @Type(() => Number)
   productId: number;
 
   @IsNumber()

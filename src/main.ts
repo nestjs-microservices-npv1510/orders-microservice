@@ -8,15 +8,7 @@ import * as config from './config';
 async function bootstrap() {
   const logger = new Logger();
 
-  // const app = await NestFactory.createMicroservice<MicroserviceOptions>(
-  //   AppModule,
-  //   {
-  //     transport: Transport.TCP,
-  //     options: {
-  //       port: config.envs.port || 5001,
-  //     },
-  //   },
-  // );
+
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     AppModule,

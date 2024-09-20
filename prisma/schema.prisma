@@ -21,29 +21,42 @@ enum OrderStatus {
 }
 
 model Order {
-  id       Int   @id @default(autoincrement())
+  id       String @id @default(uuid())
   total    Float
   numItems Int
 
-  status OrderStatus @default(PENDING)
-  paid   Boolean     @default(false)
-  paidAt DateTime?
+  status          OrderStatus @default(PENDING)
+  stripePaymentId String?
+  paid            Boolean     @default(false)
+  paidAt          DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  test String?
-
   items OrderItem[]
+
+  orderReceipt OrderReceipt?
 }
 
 model OrderItem {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid())
 
   productId Int
   quantity  Int
   price     Float
 
-  Order   Order? @relation(fields: [orderId], references: [id])
-  orderId Int?
+  Order   Order?  @relation(fields: [orderId], references: [id])
+  orderId String?
+}
+
+model OrderReceipt {
+  id String @id @default(uuid())
+
+  receiptUrl String
+
+  order   Order  @relation(fields: [orderId], references: [id])
+  orderId String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
