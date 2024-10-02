@@ -5,22 +5,11 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 
 import * as config from '../config';
 import { NatsModule } from 'src/transports/nats.module';
+import { CustomClientProxyService } from 'src/common/services/custom-client-proxy.service';
 
 @Module({
   controllers: [OrdersController],
-  providers: [OrdersService],
-  imports: [
-    // ClientsModule.register([
-    //   {
-    //     name: config.PRODUCT_MICROSERVICE_NAME,
-    //     transport: Transport.TCP,
-    //     options: {
-    //       host: config.envs.product_microservice_host,
-    //       port: config.envs.product_microservice_port,
-    //     },
-    //   },
-    // ]),
-    NatsModule,
-  ],
+  providers: [OrdersService, CustomClientProxyService],
+  imports: [NatsModule],
 })
 export class OrdersModule {}

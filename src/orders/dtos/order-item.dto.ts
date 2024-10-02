@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsPositive, IsString } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 
 export class OrderItemDto {
   @IsNumber()
@@ -11,7 +18,7 @@ export class OrderItemDto {
   @IsPositive()
   price: number;
 
-  @IsNumber()
   @IsPositive()
-  quantity: number;
+  @IsOptional()
+  quantity: number = 1;
 }

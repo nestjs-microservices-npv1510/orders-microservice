@@ -5,12 +5,15 @@ export interface OrderWithProducts {
     productId: number;
     quantity: number;
     price: number;
-    name: any;
+    name?: string;
+    images?: string[];
+    description?: string;
   }[];
   id: string;
   total: number;
   numItems: number;
   status: OrderStatus;
+
   paid: boolean;
   paidAt: Date | null;
   createdAt: Date;

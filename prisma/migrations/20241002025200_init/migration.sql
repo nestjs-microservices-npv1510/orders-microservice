@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "OrderItem" ALTER COLUMN "description" DROP NOT NULL,
+ALTER COLUMN "images" SET DEFAULT ARRAY[]::TEXT[];

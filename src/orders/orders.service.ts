@@ -5,8 +5,7 @@ import {
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { CreateOrderDto } from './dtos/create-order.dto';
 import { PrismaClient } from '@prisma/client';
 import {
   ClientProxy,
@@ -14,21 +13,20 @@ import {
   Payload,
   RpcException,
 } from '@nestjs/microservices';
-import { OrderPaginationDTO } from './dto/order-pagination.dto';
+import { OrderPaginationDTO } from './dtos/order-pagination.dto';
 
 import * as config from '../config';
 import { first, firstValueFrom } from 'rxjs';
 import { OrderWithProducts } from './interfaces/order-with-products.interface';
-import { PaidOrderDto } from './dto/paid-order.dto';
+import { PaidOrderDto } from './dtos/paid-order.dto';
+import { ChangeOrderStatusDto } from './dtos/change-order-status.dto';
+import { CustomClientProxyService } from 'src/common/services/custom-client-proxy.service';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
   private readonly logger = new Logger('OrdersService');
 
-  constructor(
-    @Inject(config.NATS_SERVICE_NAME)
-    private natsClient: ClientProxy,
-  ) {
+  constructor(private readonly natsClientProxy: CustomClientProxyService) {
     super();
   }
 
@@ -38,86 +36,87 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   }
 
   async create(createOrderDto: CreateOrderDto) {
-    // return this.order.create({ data: createOrderDto });
+    // console.log('orderservice create');
+    // return createOrderDto;
     const productIds = createOrderDto.items.map((item) => item.productId);
 
-    try {
-      const validProducts = await firstValueFrom(
-        this.natsClient.send({ cmd: 'validate_products' }, productIds),
-      );
+    const validProducts = await firstValueFrom(
+      this.natsClientProxy.send('products.validate-order-products', {
+        productIds,
+      }),
+    );
 
-      // TOTAL
-      let total = 0;
-      let numItems = 0;
+    // TOTAL
+    let total = 0;
+    let numItems = 0;
 
-      // console.log(validProducts);
+    createOrderDto.items.forEach((item) => {
+      const validPrice = validProducts.find(
+        (product) => product.id === item.productId,
+      ).price;
 
-      createOrderDto.items.forEach((item) => {
-        const validPrice = validProducts.find(
-          (product) => product.id === item.productId,
-        ).price;
+      total += validPrice * item.quantity;
+      numItems += item.quantity;
+    });
 
-        total += validPrice * item.quantity;
-        numItems += item.quantity;
-      });
-
-      const newOrder = await this.order.create({
-        data: {
-          items: {
-            createMany: {
-              data: createOrderDto.items.map((item) => {
-                return {
-                  productId: item.productId,
-                  price: validProducts.find(
-                    (product) => product.id === item.productId,
-                  ).price,
-                  quantity: item.quantity,
-                };
-              }),
-            },
-          },
-
-          total,
-          numItems,
-        },
-        include: {
-          items: {
-            select: {
-              productId: true,
-              price: true,
-              quantity: true,
-            },
+    const newOrder = await this.order.create({
+      data: {
+        items: {
+          createMany: {
+            data: createOrderDto.items.map((item) => {
+              return {
+                productId: item.productId,
+                price: validProducts.find(
+                  (product) => product.id === item.productId,
+                ).price,
+                quantity: item.quantity,
+              };
+            }),
           },
         },
-      });
-      // console.log(newOrder)
-      return {
-        // order: {
-        ...newOrder,
-        items: newOrder.items.map((item) => {
-          return {
-            name: validProducts.find((p) => p.id === item.productId).name,
-            ...item,
-          };
-        }),
-        // },
-      };
-    } catch (err) {
-      throw new RpcException({
-        status: HttpStatus.BAD_REQUEST,
-        message: err.message,
-      });
-    }
+
+        total,
+        numItems,
+      },
+      include: {
+        items: {
+          select: {
+            productId: true,
+            price: true,
+            quantity: true,
+          },
+        },
+      },
+    });
+
+    // return newOrder;
+    return {
+      // order: {
+      ...newOrder,
+      items: newOrder.items.map((item) => {
+        return {
+          name: validProducts.find((p) => p.id === item.productId).name,
+          ...item,
+        };
+      }),
+      // },
+    };
   }
 
-  async findAll(orderPaginationDto: OrderPaginationDTO) {
+  async findMany(orderPaginationDto: OrderPaginationDTO) {
     const { page = 1, limit = 3, status } = orderPaginationDto;
-    const totalItems = await this.order.count({ where: { status } });
 
-    // console.log(status);
+    const totalItems = await this.order.count({ where: { status } });
+    const totalPages = Math.ceil(totalItems / limit);
+
+    if (page > totalPages)
+      throw new RpcException({
+        statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        message: 'Page exceeds total pages',
+      });
 
     return {
-      data: await this.order.findMany({
+      orders: await this.order.findMany({
         where: { status },
         skip: (page - 1) * limit,
         take: limit,
@@ -131,7 +130,9 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   }
 
   async findOne(id: string) {
-    // const order = await this.order.findFirst({ where: { id } });
+    // console.log('Order Service find one');
+    // console.log(id);
+    // return id;
     const order = await this.order.findFirst({
       where: { id },
       include: {
@@ -144,26 +145,26 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         },
       },
     });
+    // return order;
 
     if (!order)
       throw new RpcException({
-        status: HttpStatus.NOT_FOUND,
-        message: `Order with id #${id} not found`,
+        statusCode: HttpStatus.NOT_FOUND,
+        message: `Order with id #${id} not found !`,
       });
 
     // console.log(order);
     const validProducts = await firstValueFrom(
-      this.natsClient.send(
-        { cmd: 'validate_products' },
-        order.items.map((i) => i.productId),
-      ),
+      this.natsClientProxy.send('products.validate-order-products', {
+        productIds: order.items.map((i) => i.productId),
+      }),
     );
-
     // console.log(validProducts);
+    // return validProducts;
 
     if (!order)
       throw new RpcException({
-        status: HttpStatus.NOT_FOUND,
+        statusCode: HttpStatus.NOT_FOUND,
         message: `Order with id ${id} not found`,
       });
 
@@ -178,33 +179,28 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     };
   }
 
-  async update(id: string, updateOrderDto: UpdateOrderDto) {
-    // const order = await this.findOne(id);
-    // if (order.status === updateOrderDto.status) return order;
-    // return this.order.update({
-    //   where: { id: id },
-    //   data: updateOrderDto,
-    // });
+  async changeOrderStatus(
+    id: string,
+    changeOrderStatusDto: ChangeOrderStatusDto,
+  ) {
+    const order = await this.findOne(id);
+
+    if (order.status === changeOrderStatusDto.status) return order;
+    return this.order.update({
+      where: { id },
+      data: { status: changeOrderStatusDto.status },
+    });
   }
 
   async createPaymentSession(orderWithProducts: OrderWithProducts) {
-    try {
-      const paymentSession = await firstValueFrom(
-        this.natsClient.send(
-          { cmd: 'create.payment.session' },
-          {
-            orderId: orderWithProducts.id,
-            currency: 'usd',
-            items: orderWithProducts.items,
-            metaData: { orderId: orderWithProducts.id },
-          },
-        ),
-      );
-      return paymentSession;
-    } catch (err) {
-      console.log('ERROR IN createPaymentSession');
-      throw new RpcException(err);
-    }
+    return await firstValueFrom(
+      this.natsClientProxy.send('payments.createSession', {
+        orderId: orderWithProducts.id,
+        currency: 'usd',
+        items: orderWithProducts.items,
+        metaData: { orderId: orderWithProducts.id },
+      }),
+    );
   }
 
   async paidOrder(paidOrderDto: PaidOrderDto) {
