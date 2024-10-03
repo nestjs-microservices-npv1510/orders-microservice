@@ -40,7 +40,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     // return createOrderDto;
     const productIds = createOrderDto.items.map((item) => item.productId);
 
-    const validProducts = await firstValueFrom(
+    const { products: validProducts } = await firstValueFrom(
       this.natsClientProxy.send('products.validate-order-products', {
         productIds,
       }),
@@ -110,10 +110,14 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     const totalPages = Math.ceil(totalItems / limit);
 
     if (page > totalPages)
-      throw new RpcException({
-        statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+      throw {
+        statusCode: HttpStatus.BAD_REQUEST,
         message: 'Page exceeds total pages',
-      });
+
+        // others data
+        page,
+        totalPages,
+      };
 
     return {
       orders: await this.order.findMany({
@@ -148,13 +152,13 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     // return order;
 
     if (!order)
-      throw new RpcException({
+      throw {
         statusCode: HttpStatus.NOT_FOUND,
-        message: `Order with id #${id} not found !`,
-      });
+        message: `Order with id #${id} not found`,
+      };
 
     // console.log(order);
-    const validProducts = await firstValueFrom(
+    const { products: validProducts } = await firstValueFrom(
       this.natsClientProxy.send('products.validate-order-products', {
         productIds: order.items.map((i) => i.productId),
       }),
@@ -163,10 +167,10 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     // return validProducts;
 
     if (!order)
-      throw new RpcException({
+      throw {
         statusCode: HttpStatus.NOT_FOUND,
         message: `Order with id ${id} not found`,
-      });
+      };
 
     return {
       ...order,

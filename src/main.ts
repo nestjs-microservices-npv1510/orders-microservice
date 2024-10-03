@@ -8,7 +8,7 @@ import { AppModule } from './app.module';
 
 // envs
 import * as config from './config';
-import { RpcCatchErrorInterceptor } from './common/interceptors/rpcCatchError.interceptor';
+import { CatchAsyncInterceptor } from './common/interceptors/catchAsync.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
@@ -33,7 +33,7 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(
     new LoggingInterceptor(),
-    new RpcCatchErrorInterceptor(),
+    new CatchAsyncInterceptor(),
   );
 
   await app.listen();

@@ -17,10 +17,8 @@ export class OrdersController {
     // console.log('orders controller create');
     // console.log(createOrderDto);
     // return;
-    this.logger.log(
-      `Received create order message with payload: ${JSON.stringify(createOrderDto)}`,
-    );
     const { metadata, ...dto } = createOrderDto;
+    this.logger.log(`Message payload: ${JSON.stringify(createOrderDto)}`);
     // console.log(dto);
     // return dto;
     const order = await this.ordersService.create(dto);

@@ -11,7 +11,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // url      = "postgresql://postgres:123456@orders-db:5432/ordersdb?schema=public"
 }
 
 enum OrderStatus {
